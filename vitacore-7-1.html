@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VitaCore — Health Console</title>
+<link rel="manifest" href='data:application/json,{"name":"VitaCore","short_name":"VitaCore","start_url":".","display":"standalone","background_color":"%230B1A1F","theme_color":"%230B1A1F"}'>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B1A1F;
+    --panel:#122730;
+    --panel-alt:#17323A;
+    --line:#204049;
+    --pulse:#4CDBB4;
+    --pulse-dim:#2C6B5D;
+    --pulse-rgb:76,219,180;
+    --amber:#F2A65A;
+    --red:#E8615C;
+    --violet:#9E8CF2;
+    --text:#EAF2F1;
+    --muted:#7FA0A0;
+    --muted-2:#4F6C6F;
+    --radius:14px;
+    --mono:'IBM Plex Mono',monospace;
+    --sans:'IBM Plex Sans',sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans);height:100%;}
+  body{display:flex;flex-direction:column;min-height:100dvh;overscroll-behavior-y:contain;}
+  button{font-family:var(--sans);}
+  ::selection{background:var(--pulse-dim);color:#fff;}
+  a{color:var(--pulse);}
+
+  /* ---------- topbar ---------- */
+  header.topbar{
+    padding:18px 18px 10px;
+    display:flex;align-items:center;justify-content:space-between;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#0D1F25,var(--bg));
+  }
+  .brand{display:flex;flex-direction:column;line-height:1.1;}
+  .brand .mark{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--muted);}
+  .brand .name{font-size:21px;font-weight:600;}
+  .brand .name em{font-style:normal;color:var(--pulse);}
+  .topbar-right{display:flex;align-items:center;gap:10px;}
+  .streak-pill{
+    display:flex;align-items:center;gap:6px;
+    background:var(--panel);border:1px solid var(--line);
+    padding:6px 10px;border-radius:999px;font-family:var(--mono);font-size:13px;color:var(--amber);
+  }
+  .icon-btn{
+    width:34px;height:34px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel);color:var(--muted);display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+  .icon-btn:hover{color:var(--text);border-color:var(--muted-2);}
+  .icon-btn svg{width:16px;height:16px;}
+
+  /* ---------- ecg strip ---------- */
+  .ecg-wrap{width:100%;height:46px;overflow:hidden;background:var(--bg);border-bottom:1px solid var(--line);position:relative;}
+  .ecg-track{display:flex;width:200%;height:100%;animation:ecgmove 4.5s linear infinite;}
+  .ecg-track svg{height:100%;width:50%;display:block;}
+  @keyframes ecgmove{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+  @media (prefers-reduced-motion: reduce){.ecg-track{animation:none;}}
+  .ecg-label{position:absolute;top:6px;left:18px;font-family:var(--mono);font-size:11px;color:var(--muted-2);letter-spacing:.08em;}
+
+  /* ---------- layout ---------- */
+  main{flex:1;overflow-y:auto;padding:16px 16px 90px;max-width:640px;margin:0 auto;width:100%;}
+  .tab{display:none;animation:fadein .25s ease;}
+  .tab.active{display:block;}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+  h2.section-title{font-size:14px;text-transform:none;color:var(--muted);font-weight:600;margin:22px 0 10px;font-family:var(--mono);letter-spacing:.03em;}
+  h2.section-title:first-child{margin-top:2px;}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;margin-bottom:12px;
+  }
+  .card-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+
+  .empty{
+    color:var(--muted-2);font-size:14px;text-align:center;padding:28px 10px;border:1px dashed var(--line);border-radius:var(--radius);
+  }
+
+  /* dose card */
+  .dose-card{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;}
+  .dose-card.taken{border-color:var(--pulse-dim);background:linear-gradient(90deg,rgba(var(--pulse-rgb),.08),transparent);}
+  .dose-time{font-family:var(--mono);font-size:17px;color:var(--amber);min-width:56px;}
+  .dose-card.taken .dose-time{color:var(--pulse);}
+  .dose-info{flex:1;min-width:0;}
+  .dose-name{font-weight:600;font-size:15px;}
+  .dose-dose{font-size:12.5px;color:var(--muted);}
+  .check-btn{
+    width:34px;height:34px;border-radius:50%;border:2px solid var(--muted-2);background:transparent;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+  }
+  .check-btn svg{width:16px;height:16px;stroke:transparent;}
+  .dose-card.taken .check-btn{border-color:var(--pulse);background:var(--pulse);}
+  .dose-card.taken .check-btn svg{stroke:#08201A;}
+
+  /* stat grid */
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .stat-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;}
+  .stat-card .label{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.05em;}
+  .stat-card .value{font-family:var(--mono);font-size:26px;font-weight:600;margin-top:4px;}
+  .stat-card .sub{font-size:12px;color:var(--muted-2);margin-top:2px;}
+  .stat-card.accent-amber .value{color:var(--amber);}
+  .stat-card.accent-pulse .value{color:var(--pulse);}
+  .stat-card.accent-violet .value{color:var(--violet);}
+  .stat-card.accent-red .value{color:var(--red);}
+
+  /* form */
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-family:var(--mono);letter-spacing:.02em;}
+  .field input[type=text],.field input[type=number],.field input[type=time],.field input[type=date],.field select,.field textarea{
+    width:100%;background:var(--panel-alt);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;color:var(--text);font-size:15px;font-family:var(--sans);
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--pulse-dim);border-color:var(--pulse);}
+  .row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .day-toggles{display:flex;gap:6px;flex-wrap:wrap;}
+  .day-chip{
+    width:38px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--panel-alt);
+    color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;font-family:var(--mono);
+  }
+  .day-chip.active{background:var(--pulse-dim);border-color:var(--pulse);color:#fff;}
+  .time-chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
+  .time-chip{display:flex;align-items:center;gap:6px;background:var(--panel-alt);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-family:var(--mono);font-size:13px;}
+  .time-chip button{background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;line-height:1;padding:0;}
+  .add-time-row{display:flex;gap:8px;}
+  .add-time-row input{flex:1;}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--pulse);color:#08201A;border:none;border-radius:10px;padding:11px 16px;
+    font-weight:600;font-size:14.5px;cursor:pointer;width:100%;
+  }
+  .btn:active{transform:scale(.98);}
+  .btn.secondary{background:var(--panel-alt);color:var(--text);border:1px solid var(--line);}
+  .btn.danger{background:transparent;color:var(--red);border:1px solid var(--red);}
+  .btn.small{width:auto;padding:8px 12px;font-size:13px;}
+
+  .med-item{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);}
+  .med-item:last-child{border-bottom:none;}
+  .med-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .med-item .med-info{flex:1;min-width:0;}
+  .med-item .med-name{font-weight:600;font-size:15px;}
+  .med-item .med-meta{font-size:12.5px;color:var(--muted);}
+  .med-actions{display:flex;gap:6px;}
+  .ghost-btn{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;}
+  .ghost-btn:hover{color:var(--text);}
+  .ghost-btn svg{width:16px;height:16px;}
+
+  /* tap bpm */
+  .tap-zone{
+    height:150px;border-radius:var(--radius);border:1px solid var(--line);background:var(--panel-alt);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;user-select:none;
+    margin-bottom:12px;position:relative;overflow:hidden;
+  }
+  .tap-zone .bpm-readout{font-family:var(--mono);font-size:44px;font-weight:600;color:var(--pulse);}
+  .tap-zone .bpm-hint{font-size:12.5px;color:var(--muted);margin-top:4px;}
+  .tap-zone.pulsing::after{
+    content:'';position:absolute;inset:0;background:radial-gradient(circle,rgba(var(--pulse-rgb),.25),transparent 70%);
+    animation:pulseflash .25s ease-out;
+  }
+  @keyframes pulseflash{from{opacity:1;}to{opacity:0;}}
+
+  .history-item{display:flex;align-items:center;justify-content:space-between;padding:10px 2px;border-bottom:1px solid var(--line);font-size:14px;}
+  .history-item:last-child{border-bottom:none;}
+  .history-item .h-date{color:var(--muted);font-size:12.5px;font-family:var(--mono);}
+  .history-item .h-val{font-family:var(--mono);font-weight:600;}
+  .badge{font-size:11px;padding:3px 8px;border-radius:999px;font-family:var(--mono);letter-spacing:.02em;}
+  .badge.ok{background:rgba(76,219,180,.15);color:#4CDBB4;}
+  .badge.warn{background:rgba(242,166,90,.15);color:var(--amber);}
+  .badge.bad{background:rgba(232,97,92,.15);color:var(--red);}
+
+  canvas{width:100%;display:block;}
+
+  /* sleep bars */
+  .sleep-bars{display:flex;align-items:flex-end;gap:8px;height:120px;margin-top:6px;}
+  .sleep-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px;}
+  .sleep-bar{width:100%;border-radius:6px 6px 0 0;background:var(--violet);min-height:3px;}
+  .sleep-bar-col .lbl{font-size:10.5px;color:var(--muted-2);font-family:var(--mono);}
+
+  /* stress slider */
+  input[type=range]{width:100%;accent-color:var(--violet);height:28px;}
+  .stress-label{text-align:center;font-family:var(--mono);font-size:15px;color:var(--violet);margin-bottom:4px;}
+
+  /* bmi gauge */
+  .gauge-track{height:10px;border-radius:6px;background:linear-gradient(90deg,#4C7CDB 0%,#4CDBB4 30%,var(--amber) 65%,var(--red) 100%);position:relative;margin:22px 0 8px;}
+  .gauge-marker{position:absolute;top:-9px;width:3px;height:28px;background:#fff;border-radius:2px;transform:translateX(-50%);box-shadow:0 0 0 3px rgba(255,255,255,.15);}
+  .gauge-scale{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted-2);font-family:var(--mono);}
+
+  /* toast */
+  .toast{
+    position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(10px);
+    background:var(--panel-alt);border:1px solid var(--pulse);color:var(--text);
+    padding:10px 16px;border-radius:10px;font-size:13.5px;opacity:0;pointer-events:none;transition:all .25s ease;z-index:50;
+    max-width:88%;text-align:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(5,12,15,.72);display:none;align-items:flex-end;justify-content:center;z-index:60;}
+  .modal-bg.show{display:flex;}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;padding:20px 18px 26px;width:100%;max-width:640px;max-height:86vh;overflow-y:auto;}
+  .modal h3{margin:0 0 14px;font-size:17px;}
+  .modal-close-row{display:flex;justify-content:flex-end;margin-bottom:4px;}
+
+  /* tabbar */
+  nav.tabbar{
+    position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--panel);border-top:1px solid var(--line);
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:40;
+    overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+  }
+  nav.tabbar::-webkit-scrollbar{display:none;}
+  nav.tabbar button{
+    flex:0 0 auto;min-width:58px;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;
+    color:var(--muted-2);padding:6px 8px;cursor:pointer;font-size:10.5px;font-family:var(--mono);white-space:nowrap;
+  }
+  nav.tabbar button svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;}
+  nav.tabbar button.active{color:var(--pulse);}
+  @media (min-width:640px){ nav.tabbar button{flex:1;} }
+
+  ::-webkit-scrollbar{width:6px;height:6px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
+
+  /* ---------- motion sickness ---------- */
+  .tip-hint{font-size:13px;color:var(--muted);line-height:1.5;margin:10px 0;}
+  .tip-list{margin:0;padding-left:20px;color:var(--text);font-size:13.5px;line-height:1.7;}
+  .tip-list li{margin-bottom:4px;}
+
+  .horizon-wrap{
+    position:relative;height:150px;border-radius:12px;overflow:hidden;border:1px solid var(--line);
+    background:#000;
+  }
+  .horizon-plate{
+    position:absolute;left:-20%;top:-60%;width:140%;height:220%;
+    transition:transform .15s ease-out;transform:rotate(0deg) translateY(0);
+    animation:horizonIdle 7s ease-in-out infinite;
+  }
+  .horizon-wrap.tilting .horizon-plate{animation:none;}
+  @keyframes horizonIdle{
+    0%,100%{transform:rotate(-4deg) translateY(0);}
+    50%{transform:rotate(4deg) translateY(4px);}
+  }
+  .horizon-sky{position:absolute;top:0;left:0;right:0;height:50%;background:linear-gradient(180deg,#1B3A52,#3E6E8C);}
+  .horizon-ground{position:absolute;bottom:0;left:0;right:0;height:50%;background:linear-gradient(180deg,#3B4C2E,#22301C);}
+  .horizon-line{position:absolute;top:50%;left:0;right:0;height:2px;background:var(--pulse);box-shadow:0 0 8px rgba(var(--pulse-rgb),.6);}
+  .horizon-marker{
+    position:absolute;left:50%;top:50%;width:56px;height:16px;transform:translate(-50%,-50%);
+    border-top:2px solid var(--amber);border-bottom:2px solid var(--amber);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .horizon-marker::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--amber);}
+
+  .breathe-circle{
+    width:140px;height:140px;border-radius:50%;margin:6px auto 0;
+    background:radial-gradient(circle,rgba(var(--pulse-rgb),.25),rgba(var(--pulse-rgb),.05));
+    border:1.5px solid var(--pulse-dim);display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:14px;color:var(--pulse);
+    transform:scale(0.7);transition:transform 4s ease-in-out;
+  }
+  .breathe-circle.grow{transform:scale(1.15);}
+  .breathe-circle.hold{transform:scale(1.15);}
+  .breathe-circle.shrink{transform:scale(0.7);}
+
+  /* ---------- food ---------- */
+  .progress-track{height:8px;border-radius:5px;background:var(--panel-alt);overflow:hidden;margin:12px 0 4px;}
+  .progress-fill{height:100%;background:var(--pulse);border-radius:5px;transition:width .3s ease;}
+  .progress-fill.accent-violet{background:var(--violet);}
+  .progress-label{font-size:11.5px;color:var(--muted-2);display:flex;justify-content:space-between;font-family:var(--mono);}
+  .quick-tag-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .quick-tag{background:var(--panel-alt);border:1px solid var(--line);border-radius:10px;padding:9px 13px;font-size:13.5px;color:var(--text);cursor:pointer;}
+  .quick-tag:active{transform:scale(.97);}
+
+  /* ---------- premium ---------- */
+  .paywall-card{
+    text-align:center;background:var(--panel);border:1px solid var(--amber);border-radius:var(--radius);
+    padding:32px 22px;margin-top:6px;
+  }
+  .paywall-card svg{width:34px;height:34px;color:var(--amber);margin-bottom:10px;}
+  .paywall-title{font-weight:600;font-size:16px;margin-bottom:6px;}
+  .paywall-sub{color:var(--muted);font-size:13.5px;line-height:1.5;margin:0 0 18px;}
+  .pro-badge{
+    display:flex;align-items:center;gap:4px;background:rgba(242,166,90,.15);color:var(--amber);
+    border:1px solid var(--amber);padding:5px 9px;border-radius:999px;font-family:var(--mono);font-size:11px;
+  }
+  .pro-badge svg{width:12px;height:12px;}
+  nav.tabbar button.locked{position:relative;}
+  nav.tabbar button.locked svg{opacity:.55;}
+  nav.tabbar button.locked::after{
+    content:'';position:absolute;top:2px;right:10px;width:6px;height:6px;border-radius:50%;background:var(--amber);
+  }
+  .theme-swatch{
+    display:flex;align-items:center;gap:7px;background:var(--panel-alt);border:1.5px solid var(--line);
+    border-radius:10px;padding:8px 12px;font-size:13px;color:var(--text);cursor:pointer;
+  }
+  .theme-swatch::before{content:'';width:14px;height:14px;border-radius:50%;background:var(--sw);flex-shrink:0;}
+  .theme-swatch.active{border-color:var(--sw);background:rgba(255,255,255,.04);}
+  .theme-swatch.locked{opacity:.45;}
+
+  /* ---------- health score ---------- */
+  .health-score-card{display:flex;align-items:center;gap:16px;}
+  .hs-ring-wrap{position:relative;width:96px;height:96px;flex-shrink:0;}
+  .hs-ring-wrap svg{transform:rotate(-90deg);}
+  #hsRingFg{transition:stroke-dashoffset .6s ease, stroke .3s ease;}
+  .hs-ring-value{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--mono);}
+  .hs-ring-value .num{font-size:24px;font-weight:600;line-height:1;}
+  .hs-ring-value .max{font-size:10px;color:var(--muted-2);margin-top:2px;}
+  .hs-info{flex:1;min-width:0;}
+  .hs-label{font-weight:600;font-size:15px;margin-bottom:4px;}
+  .hs-sub{font-size:12.5px;color:var(--muted);line-height:1.5;}
+  .hs-factors{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .hs-factor{font-family:var(--mono);font-size:10.5px;padding:3px 8px;border-radius:999px;background:var(--panel-alt);border:1px solid var(--line);color:var(--muted);text-transform:capitalize;}
+
+  /* ---------- medicine icons ---------- */
+  .icon-chip{width:38px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--panel-alt);
+    display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--muted-2);}
+  .icon-chip.active{border-color:var(--pulse);background:var(--pulse-dim);}
+  .icon-chip.locked{opacity:.45;}
+
+  /* ---------- chime packs ---------- */
+  .chime-pack{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--panel-alt);
+    border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;cursor:pointer;margin-bottom:8px;}
+  .chime-pack .cp-name{font-weight:600;font-size:13.5px;}
+  .chime-pack .cp-desc{font-size:11.5px;color:var(--muted);margin-top:1px;}
+  .chime-pack.active{border-color:var(--pulse);background:rgba(255,255,255,.04);}
+  .chime-pack.locked{opacity:.45;}
+  .chime-pack .cp-play{background:none;border:1px solid var(--line);border-radius:8px;width:30px;height:30px;
+    display:flex;align-items:center;justify-content:center;color:var(--muted);flex-shrink:0;cursor:pointer;}
+  .chime-pack .cp-play:hover{color:var(--text);}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark">VITALS · CONSOLE</span>
+    <span class="name">Vita<em>Core</em></span>
+  </div>
+  <div class="topbar-right">
+    <div class="pro-badge" id="proBadge" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-4z"/></svg>
+      PRO
+    </div>
+    <div class="streak-pill" id="streakPill">🔥 0</div>
+    <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="ecg-wrap">
+  <span class="ecg-label" id="ecgLabel">-- BPM</span>
+  <div class="ecg-track" id="ecgTrack">
+    <svg viewBox="0 0 300 46" preserveAspectRatio="none"><polyline points="0,23 40,23 52,23 58,6 64,40 70,23 90,23 130,23 142,23 148,6 154,40 160,23 180,23 220,23 232,23 238,6 244,40 250,23 270,23 300,23" fill="none" stroke="var(--pulse)" stroke-width="1.6"/></svg>
+    <svg viewBox="0 0 300 46" preserveAspectRatio="none"><polyline points="0,23 40,23 52,23 58,6 64,40 70,23 90,23 130,23 142,23 148,6 154,40 160,23 180,23 220,23 232,23 238,6 244,40 250,23 270,23 300,23" fill="none" stroke="var(--pulse)" stroke-width="1.6"/></svg>
+  </div>
+</div>
+
+<main>
+
+  <!-- TODAY -->
+  <section class="tab active" data-tab="today">
+    <h2 class="section-title">Health Score</h2>
+    <div class="paywall-card" id="healthScorePaywall" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+      <div class="paywall-title">Health Score is a Premium feature</div>
+      <p class="paywall-sub">A daily 0–100 snapshot blending dose adherence, heart rate, sleep, and stress into one number.</p>
+      <button class="btn" id="upgradeBtnHealthScore">Upgrade to Premium</button>
+    </div>
+    <div class="card health-score-card" id="healthScoreContent" style="display:none;">
+      <div class="hs-ring-wrap">
+        <svg viewBox="0 0 96 96" width="96" height="96">
+          <circle cx="48" cy="48" r="42" fill="none" stroke="var(--line)" stroke-width="9"/>
+          <circle id="hsRingFg" cx="48" cy="48" r="42" fill="none" stroke="var(--pulse)" stroke-width="9" stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="263.9"/>
+        </svg>
+        <div class="hs-ring-value"><span class="num" id="hsScoreNum">--</span><span class="max">/ 100</span></div>
+      </div>
+      <div class="hs-info">
+        <div class="hs-label" id="hsCategory">Health Score</div>
+        <div class="hs-sub" id="hsSub">Log a few vitals to see your score.</div>
+        <div class="hs-factors" id="hsFactors"></div>
+      </div>
+    </div>
+
+    <h2 class="section-title">Today's doses</h2>
+    <div id="doseList"></div>
+
+    <h2 class="section-title">Vitals snapshot</h2>
+    <div class="stat-grid" id="snapshotGrid"></div>
+
+    <h2 class="section-title">Weekly insights</h2>
+    <div class="paywall-card" id="insightsPaywall" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+      <div class="paywall-title">Weekly insights is a Premium feature</div>
+      <p class="paywall-sub">See your 7-day averages for heart rate, sleep, stress, and dose adherence — plus full history and CSV export.</p>
+      <button class="btn" id="upgradeBtnInsights">Upgrade to Premium</button>
+    </div>
+    <div id="insightsContent"></div>
+  </section>
+
+  <!-- MEDS -->
+  <section class="tab" data-tab="meds">
+    <h2 class="section-title">Your medicines</h2>
+    <div class="card" id="medListCard"></div>
+    <button class="btn" id="openAddMed">+ Add medicine</button>
+    <div class="paywall-card" id="medLimitCard" style="display:none;margin-top:12px;padding:20px 18px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+      <div class="paywall-title">Free plan: up to 3 medicines</div>
+      <p class="paywall-sub">Upgrade to Premium for unlimited medicines, plus motion sickness tools, healthy eating tracking, and a custom app theme.</p>
+      <button class="btn" id="upgradeBtnMeds">Upgrade to Premium</button>
+    </div>
+  </section>
+
+  <!-- VITALS -->
+  <section class="tab" data-tab="vitals">
+    <h2 class="section-title">Heart rate</h2>
+    <div class="tap-zone" id="tapZone">
+      <div class="bpm-readout" id="tapReadout">TAP</div>
+      <div class="bpm-hint" id="tapHint">Tap here in rhythm with your pulse (6+ taps)</div>
+    </div>
+    <div class="row-2">
+      <div class="field"><input type="number" id="bpmManual" placeholder="Or enter BPM"></div>
+      <button class="btn secondary" id="logBpmBtn" style="height:44px;">Log reading</button>
+    </div>
+    <div class="card"><canvas id="bpmChart" height="120"></canvas></div>
+    <div class="card" id="bpmHistory"></div>
+
+    <h2 class="section-title">Blood pressure</h2>
+    <div class="card">
+      <div class="row-2">
+        <div class="field"><label>Systolic</label><input type="number" id="bpSys" placeholder="120"></div>
+        <div class="field"><label>Diastolic</label><input type="number" id="bpDia" placeholder="80"></div>
+      </div>
+      <button class="btn" id="logBpBtn">Log reading</button>
+    </div>
+    <div class="card" id="bpHistory"></div>
+  </section>
+
+  <!-- SLEEP -->
+  <section class="tab" data-tab="sleep">
+    <h2 class="section-title">Log sleep</h2>
+    <div class="card">
+      <div class="row-2">
+        <div class="field"><label>Bedtime</label><input type="time" id="bedtimeInput" value="23:00"></div>
+        <div class="field"><label>Wake time</label><input type="time" id="waketimeInput" value="07:00"></div>
+      </div>
+      <button class="btn" id="logSleepBtn">Log night</button>
+    </div>
+    <h2 class="section-title">Last 7 nights</h2>
+    <div class="card">
+      <div class="sleep-bars" id="sleepBars"></div>
+    </div>
+    <div class="card" id="sleepHistory"></div>
+  </section>
+
+  <!-- STRESS -->
+  <section class="tab" data-tab="stress">
+    <h2 class="section-title">Quick check-in</h2>
+    <div class="card">
+      <div class="stress-label" id="stressLabel">Moderate</div>
+      <input type="range" min="1" max="10" value="5" id="stressSlider">
+      <button class="btn secondary" id="logStressBtn" style="margin-top:10px;">Log how I feel</button>
+    </div>
+    <h2 class="section-title">Trend</h2>
+    <div class="card"><canvas id="stressChart" height="100"></canvas></div>
+    <div class="card" id="stressHistory"></div>
+  </section>
+
+  <!-- BMI -->
+  <section class="tab" data-tab="bmi">
+    <h2 class="section-title">BMI calculator</h2>
+    <div class="card">
+      <div class="row-2">
+        <div class="field"><label>Height (cm)</label><input type="number" id="bmiHeight" placeholder="170"></div>
+        <div class="field"><label>Weight (kg)</label><input type="number" id="bmiWeight" placeholder="68"></div>
+      </div>
+      <button class="btn" id="calcBmiBtn">Calculate</button>
+      <div id="bmiResult" style="margin-top:16px;display:none;">
+        <div style="text-align:center;">
+          <span style="font-family:var(--mono);font-size:38px;font-weight:600;" id="bmiValue">--</span>
+          <div><span class="badge" id="bmiBadge">—</span></div>
+        </div>
+        <div class="gauge-track"><div class="gauge-marker" id="bmiMarker" style="left:0%"></div></div>
+        <div class="gauge-scale"><span>15</span><span>18.5</span><span>25</span><span>30</span><span>40</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MOTION SICKNESS -->
+  <section class="tab" data-tab="motion">
+    <div id="motionPaywall" class="paywall-card" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+      <div class="paywall-title">Motion sickness aids is a Premium feature</div>
+      <p class="paywall-sub">Unlock the artificial horizon, breathing pacer, acupressure timer, and episode log for $1.99/month.</p>
+      <button class="btn" id="upgradeBtnMotion">Upgrade to Premium</button>
+    </div>
+    <div id="motionContent">
+    <h2 class="section-title">Artificial horizon</h2>
+    <div class="card">
+      <div class="horizon-wrap" id="horizonWrap">
+        <div class="horizon-plate" id="horizonPlate">
+          <div class="horizon-sky"></div>
+          <div class="horizon-ground"></div>
+          <div class="horizon-line"></div>
+        </div>
+        <div class="horizon-marker"></div>
+      </div>
+      <p class="tip-hint">Fix your eyes on the line and the real horizon (or a fixed distant point) rather than a screen or book — a stable visual reference is one of the most effective non-drug ways to settle motion sickness.</p>
+      <button class="btn secondary" id="tiltPermBtn">Enable device tilt</button>
+    </div>
+
+    <h2 class="section-title">Breathing pacer</h2>
+    <div class="card" style="text-align:center;">
+      <div class="breathe-circle" id="breatheCircle"><span id="breatheLabel">Ready</span></div>
+      <button class="btn" id="breatheBtn" style="margin-top:14px;">Start box breathing</button>
+    </div>
+
+    <h2 class="section-title">Acupressure timer</h2>
+    <div class="card">
+      <p class="tip-hint" style="margin-top:0;">Some people find gentle pressure on the P6 point helpful: with your thumb, press the inside of your wrist about three finger-widths below your palm, between the two central tendons.</p>
+      <div class="card-row">
+        <div class="bpm-readout" id="acuReadout" style="font-size:32px;">60</div>
+        <button class="btn secondary small" id="acuBtn">Start 60s</button>
+      </div>
+    </div>
+
+    <h2 class="section-title">General tips</h2>
+    <div class="card">
+      <ul class="tip-list">
+        <li>Sit where motion is felt least — front seat of a car, over the wing on a plane, mid-ship on a boat.</li>
+        <li>Look toward the horizon or a fixed distant point; avoid reading or screens.</li>
+        <li>Get fresh air and avoid strong odors when possible.</li>
+        <li>Keep your head as still as you can relative to the vehicle.</li>
+        <li>Avoid heavy or greasy meals right before traveling; ginger is a commonly used natural option.</li>
+        <li>Ask a pharmacist about over-the-counter options suited to you before you travel.</li>
+      </ul>
+    </div>
+
+    <h2 class="section-title">Log an episode</h2>
+    <div class="card">
+      <div class="stress-label" id="motionSevLabel">Moderate</div>
+      <input type="range" min="1" max="10" value="5" id="motionSevSlider">
+      <div class="field" style="margin-top:12px;"><input type="text" id="motionTrigger" placeholder="Trigger (optional) — e.g. car, boat, reading"></div>
+      <button class="btn secondary" id="logMotionBtn">Log episode</button>
+    </div>
+    <div class="card" id="motionHistory"></div>
+    </div>
+  </section>
+
+  <!-- FOOD -->
+  <section class="tab" data-tab="food">
+    <div id="foodPaywall" class="paywall-card" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-4z"/><path d="M9 12l2 2 4-4"/></svg>
+      <div class="paywall-title">Healthy eating tools is a Premium feature</div>
+      <p class="paywall-sub">Unlock hydration and produce tracking, meal tags, and gentle reminders for $1.99/month.</p>
+      <button class="btn" id="upgradeBtnFood">Upgrade to Premium</button>
+    </div>
+    <div id="foodContent">
+    <h2 class="section-title">Hydration</h2>
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <div class="bpm-readout" id="waterCount" style="font-size:34px;">0</div>
+          <div class="tip-hint" style="margin:2px 0 0;">cups today</div>
+        </div>
+        <button class="btn secondary small" id="addWaterBtn">+ Add cup</button>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="waterFill" style="width:0%"></div></div>
+      <div class="progress-label"><span>0</span><span>~8 cups is a common general guideline</span></div>
+    </div>
+
+    <h2 class="section-title">Fruits &amp; vegetables</h2>
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <div class="bpm-readout" id="produceCount" style="font-size:34px;">0</div>
+          <div class="tip-hint" style="margin:2px 0 0;">servings today</div>
+        </div>
+        <button class="btn secondary small" id="addProduceBtn">+ Add serving</button>
+      </div>
+      <div class="progress-track"><div class="progress-fill accent-violet" id="produceFill" style="width:0%"></div></div>
+      <div class="progress-label"><span>0</span><span>~5 a day is a common general guideline</span></div>
+    </div>
+
+    <h2 class="section-title">Meals today</h2>
+    <div class="card">
+      <div class="quick-tag-row" id="mealTagRow">
+        <button class="quick-tag" data-tag="Balanced plate">Balanced plate</button>
+        <button class="quick-tag" data-tag="Homemade">Homemade</button>
+        <button class="quick-tag" data-tag="Quick bite">Quick bite</button>
+        <button class="quick-tag" data-tag="Ate out">Ate out</button>
+        <button class="quick-tag" data-tag="Treat">Treat</button>
+      </div>
+      <div class="field"><input type="text" id="mealNote" placeholder="Note (optional)"></div>
+    </div>
+    <div class="card" id="mealHistory"></div>
+
+    <h2 class="section-title">Gentle reminders</h2>
+    <div class="card">
+      <ul class="tip-list">
+        <li>Aim for variety across the week rather than perfection in any one meal.</li>
+        <li>Eating regularly through the day tends to feel better than skipping meals.</li>
+        <li>Slowing down and noticing hunger and fullness cues is worth more than any single food choice.</li>
+        <li>There's room for treats — the goal is a sustainable pattern, not a strict rulebook.</li>
+        <li>If eating feels stressful or hard to manage, a doctor or registered dietitian can help far more than an app.</li>
+      </ul>
+    </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+
+<!-- Add medicine modal -->
+<div class="modal-bg" id="medModalBg">
+  <div class="modal">
+    <div class="modal-close-row"><button class="ghost-btn" id="closeMedModal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button></div>
+    <h3>Add medicine</h3>
+    <div class="field"><label>Name</label><input type="text" id="medName" placeholder="e.g. Metformin"></div>
+    <div class="field"><label>Dose</label><input type="text" id="medDose" placeholder="e.g. 500mg, 1 tablet"></div>
+    <div class="field">
+      <label>Reminder times</label>
+      <div class="time-chip-row" id="medTimeChips"></div>
+      <div class="add-time-row">
+        <input type="time" id="medTimeInput">
+        <button class="btn secondary small" id="addTimeBtn">Add time</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Days</label>
+      <div class="day-toggles" id="dayToggles"></div>
+    </div>
+    <div class="field">
+      <label>Color</label>
+      <div class="day-toggles" id="colorToggles"></div>
+    </div>
+    <div class="field">
+      <label>Icon <span style="color:var(--muted-2);">(Premium)</span></label>
+      <div class="quick-tag-row" id="iconToggles"></div>
+    </div>
+    <button class="btn" id="saveMedBtn">Save medicine</button>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-bg" id="settingsModalBg">
+  <div class="modal">
+    <div class="modal-close-row"><button class="ghost-btn" id="closeSettingsModal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button></div>
+    <h3>Settings</h3>
+    <div class="field">
+      <label>Premium</label>
+      <div id="premiumStatusOk" style="display:none;" class="tip-hint">You're on VitaCore Premium — thanks for supporting the app 💚</div>
+      <ul class="tip-list" id="premiumBenefitsList">
+        <li>Unlimited medicines (free plan: up to 3)</li>
+        <li>Motion sickness toolkit — horizon, breathing pacer, acupressure timer</li>
+        <li>Healthy eating tools — hydration, produce, meal log</li>
+        <li>Custom app accent color</li>
+        <li>Weekly insights — 7-day averages and dose adherence</li>
+        <li>Full history &amp; trend charts (free plan: last 5 entries)</li>
+        <li>CSV export of all your data</li>
+        <li>Daily Health Score — one number for adherence, heart rate, sleep &amp; stress</li>
+        <li>Custom medicine emoji icons</li>
+        <li>Custom reminder chime packs</li>
+      </ul>
+      <button class="btn" id="upgradeBtnSettings">Upgrade to Premium — $1.99/mo</button>
+      <button class="btn secondary small" id="restoreBtn" style="margin-top:8px;">Restore purchase</button>
+    </div>
+    <div class="field">
+      <label>App theme <span style="color:var(--muted-2);">(Premium)</span></label>
+      <div class="quick-tag-row">
+        <button class="theme-swatch" data-accent="teal" style="--sw:#4CDBB4;">Teal</button>
+        <button class="theme-swatch" data-accent="amber" style="--sw:#F2A65A;">Amber</button>
+        <button class="theme-swatch" data-accent="violet" style="--sw:#9E8CF2;">Violet</button>
+        <button class="theme-swatch" data-accent="rose" style="--sw:#E8615C;">Rose</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Reminder chime <span style="color:var(--muted-2);">(Premium)</span></label>
+      <div id="chimePackList"></div>
+    </div>
+    <div class="field">
+      <button class="btn secondary" id="notifPermBtn">Enable dose notifications</button>
+    </div>
+    <div class="field">
+      <button class="btn secondary" id="exportBtn">Export data (.json)</button>
+      <button class="btn secondary" id="exportCsvBtn" style="margin-top:8px;">Export CSV (Premium)</button>
+    </div>
+    <div class="field">
+      <label>Import data</label>
+      <input type="file" id="importFile" accept="application/json">
+    </div>
+    <div class="field">
+      <button class="btn danger" id="resetBtn">Reset all data</button>
+    </div>
+  </div>
+</div>
+
+<nav class="tabbar">
+  <button class="tab-btn active" data-tab="today">
+    <svg viewBox="0 0 24 24"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg>
+    Today
+  </button>
+  <button class="tab-btn" data-tab="meds">
+    <svg viewBox="0 0 24 24"><rect x="3" y="10" width="18" height="7" rx="3.5" transform="rotate(-30 12 12)"/><path d="M8 13 14 7" transform="rotate(-30 12 12)"/></svg>
+    Meds
+  </button>
+  <button class="tab-btn" data-tab="vitals">
+    <svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
+    Vitals
+  </button>
+  <button class="tab-btn" data-tab="sleep">
+    <svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+    Sleep
+  </button>
+  <button class="tab-btn" data-tab="stress">
+    <svg viewBox="0 0 24 24"><path d="M3 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0"/></svg>
+    Stress
+  </button>
+  <button class="tab-btn" data-tab="bmi">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 12 16 8"/></svg>
+    BMI
+  </button>
+  <button class="tab-btn" data-tab="motion">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M4 12h16M7 8.5c1.5 1 3.2 1.5 5 1.5s3.5-.5 5-1.5M7 15.5c1.5-1 3.2-1.5 5-1.5s3.5.5 5 1.5"/></svg>
+    Motion
+  </button>
+  <button class="tab-btn" data-tab="food">
+    <svg viewBox="0 0 24 24"><path d="M6 2v7a2 2 0 0 0 2 2v11M6 2v11M10 2v7a2 2 0 0 1-2 2M18 2c-2 0-3 3-3 6s1 4 3 4v10"/></svg>
+    Food
+  </button>
+</nav>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- storage ---------------- */
+  const STORE_KEY = "vitacore_data_v1";
+  function defaultState(){
+    return { meds:[], doseLog:[], bpm:[], bp:[], sleep:[], stress:[], xp:0, streak:{current:0,best:0,lastCompleteDate:null}, motionLog:[], waterLog:[], produceLog:[], mealLog:[], premium:false, accentColor:"teal", chimePack:"classic" };
+  }
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORE_KEY);
+      if(!raw) return defaultState();
+      const parsed = JSON.parse(raw);
+      return Object.assign(defaultState(), parsed);
+    }catch(e){ return defaultState(); }
+  }
+  let state = load();
+  function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+  function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  /* ---------------- date helpers ---------------- */
+  function pad(n){ return n<10 ? "0"+n : ""+n; }
+  function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function dateStrFrom(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function nowHM(){ const d=new Date(); return pad(d.getHours())+":"+pad(d.getMinutes()); }
+  function addDays(dateStr, n){ const d=new Date(dateStr+"T00:00:00"); d.setDate(d.getDate()+n); return dateStrFrom(d); }
+  function prettyDate(dateStr){
+    const d = new Date(dateStr+"T00:00:00");
+    return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  }
+
+  /* ---------------- toast ---------------- */
+  let toastTimer;
+  function toast(msg){
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>el.classList.remove("show"), 2200);
+  }
+
+  /* ---------------- sound ---------------- */
+  let actx;
+  function playChime(freq, dur, type){
+    try{
+      actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+      const o = actx.createOscillator();
+      const g = actx.createGain();
+      o.type = type || "sine";
+      o.frequency.value = freq || 880;
+      g.gain.value = 0.0001;
+      o.connect(g); g.connect(actx.destination);
+      const t = actx.currentTime;
+      g.gain.exponentialRampToValueAtTime(0.18, t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+(dur||0.35));
+      o.start(t); o.stop(t+(dur||0.35)+0.05);
+    }catch(e){}
+  }
+  /* premium: reminder chime packs */
+  const CHIME_PACKS = {
+    classic: { label:"Classic", desc:"Warm two-tone chime", wave:"sine",
+      success:[[880,0.18],[1320,0.28]], soft:[[660,0.22]], tick:[[440,0.06]] },
+    marimba: { label:"Marimba", desc:"Soft wooden triple knock", wave:"triangle",
+      success:[[523,0.16],[659,0.16],[784,0.26]], soft:[[523,0.22]], tick:[[392,0.07]] },
+    digital: { label:"Digital", desc:"Crisp electronic beep", wave:"square",
+      success:[[1046,0.09],[1568,0.14]], soft:[[784,0.1]], tick:[[988,0.04]] },
+    zen: { label:"Zen bell", desc:"Long, calming resonance", wave:"sine",
+      success:[[528,0.45],[660,0.55]], soft:[[440,0.4]], tick:[[396,0.12]] },
+  };
+  function currentPack(){ return CHIME_PACKS[state.chimePack] || CHIME_PACKS.classic; }
+  function playPackSeq(pack, seqName){
+    pack[seqName].forEach((n,i)=>{ setTimeout(()=>playChime(n[0], n[1], pack.wave), i*120); });
+  }
+  function chimeSuccess(){ playPackSeq(currentPack(), "success"); }
+  function chimeSoft(){ playPackSeq(currentPack(), "soft"); }
+  function chimeTick(){ playPackSeq(currentPack(), "tick"); }
+  function previewPack(key){ playPackSeq(CHIME_PACKS[key] || CHIME_PACKS.classic, "success"); }
+  function renderChimePacks(){
+    const wrap = document.getElementById("chimePackList");
+    wrap.innerHTML = "";
+    Object.keys(CHIME_PACKS).forEach(key=>{
+      const p = CHIME_PACKS[key];
+      const row = document.createElement("div");
+      row.className = "chime-pack" + (state.chimePack===key ? " active" : "") + (!state.premium ? " locked" : "");
+      row.innerHTML = `
+        <div>
+          <div class="cp-name">${p.label}</div>
+          <div class="cp-desc">${p.desc}</div>
+        </div>
+        <button class="cp-play" data-preview="${key}" aria-label="Preview ${p.label}" type="button">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M8 5v14l11-7z"/></svg>
+        </button>`;
+      row.addEventListener("click", (e)=>{
+        if(e.target.closest("[data-preview]")) return;
+        if(!state.premium){ toast("Custom reminder chimes are a Premium feature"); return; }
+        state.chimePack = key;
+        save();
+        renderChimePacks();
+      });
+      row.querySelector("[data-preview]").addEventListener("click", (e)=>{
+        e.stopPropagation();
+        previewPack(key);
+      });
+      wrap.appendChild(row);
+    });
+  }
+
+  /* ---------------- tabs ---------------- */
+  const tabs = document.querySelectorAll(".tab");
+  const tabBtns = document.querySelectorAll(".tab-btn");
+  tabBtns.forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const name = btn.dataset.tab;
+      tabs.forEach(t=>t.classList.toggle("active", t.dataset.tab===name));
+      tabBtns.forEach(b=>b.classList.toggle("active", b===btn));
+      if(name==="vitals") renderBpmChart();
+      if(name==="stress") renderStressChart();
+      if(name==="sleep") renderSleepBars();
+      if(name==="motion") renderMotionHistory();
+      if(name==="food") renderFoodTab();
+    });
+  });
+
+  /* ---------------- modals ---------------- */
+  function openModal(id){ document.getElementById(id).classList.add("show"); }
+  function closeModal(id){ document.getElementById(id).classList.remove("show"); }
+  document.getElementById("settingsBtn").addEventListener("click", ()=>{
+    openModal("settingsModalBg");
+  });
+  document.getElementById("closeSettingsModal").addEventListener("click", ()=>closeModal("settingsModalBg"));
+  document.getElementById("openAddMed").addEventListener("click", ()=>{ resetMedForm(); openModal("medModalBg"); });
+  document.getElementById("closeMedModal").addEventListener("click", ()=>closeModal("medModalBg"));
+
+  /* ==================================================================
+     MEDICINES
+  ================================================================== */
+  const DAY_LABELS = ["S","M","T","W","T","F","S"];
+  const MED_COLORS = ["#4CDBB4","#F2A65A","#9E8CF2","#E8615C","#5AA6F2"];
+  const FREE_MED_LIMIT = 3;
+  const MED_ICONS = ["","💊","🌡️","💉","🩹","🧴","🧪","🦴","❤️","🧠","👁️"];
+  let medFormTimes = [];
+  let medFormDays = [0,1,2,3,4,5,6];
+  let medFormColor = MED_COLORS[0];
+  let medFormIcon = "";
+
+  function resetMedForm(){
+    medFormTimes = [];
+    medFormDays = [0,1,2,3,4,5,6];
+    medFormColor = MED_COLORS[0];
+    medFormIcon = "";
+    document.getElementById("medName").value = "";
+    document.getElementById("medDose").value = "";
+    renderTimeChips();
+    renderDayToggles();
+    renderColorToggles();
+    renderIconToggles();
+  }
+  function renderIconToggles(){
+    const wrap = document.getElementById("iconToggles");
+    wrap.innerHTML = "";
+    MED_ICONS.forEach(ic=>{
+      const chip = document.createElement("div");
+      const isLockedIcon = ic!=="" && !state.premium;
+      chip.className = "icon-chip" + (medFormIcon===ic ? " active" : "") + (isLockedIcon ? " locked" : "");
+      chip.textContent = ic || "—";
+      chip.addEventListener("click", ()=>{
+        if(ic!=="" && !state.premium){ toast("Custom medicine icons are a Premium feature"); return; }
+        medFormIcon = ic;
+        renderIconToggles();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+  function renderTimeChips(){
+    const wrap = document.getElementById("medTimeChips");
+    wrap.innerHTML = "";
+    medFormTimes.sort();
+    medFormTimes.forEach(t=>{
+      const chip = document.createElement("div");
+      chip.className = "time-chip";
+      chip.innerHTML = `<span>${t}</span>`;
+      const rm = document.createElement("button");
+      rm.textContent = "×";
+      rm.addEventListener("click", ()=>{ medFormTimes = medFormTimes.filter(x=>x!==t); renderTimeChips(); });
+      chip.appendChild(rm);
+      wrap.appendChild(chip);
+    });
+  }
+  document.getElementById("addTimeBtn").addEventListener("click", ()=>{
+    const v = document.getElementById("medTimeInput").value;
+    if(v && !medFormTimes.includes(v)){ medFormTimes.push(v); renderTimeChips(); }
+  });
+  function renderDayToggles(){
+    const wrap = document.getElementById("dayToggles");
+    wrap.innerHTML = "";
+    DAY_LABELS.forEach((lbl, i)=>{
+      const chip = document.createElement("div");
+      chip.className = "day-chip" + (medFormDays.includes(i) ? " active" : "");
+      chip.textContent = lbl;
+      chip.addEventListener("click", ()=>{
+        if(medFormDays.includes(i)) medFormDays = medFormDays.filter(x=>x!==i);
+        else medFormDays.push(i);
+        renderDayToggles();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+  function renderColorToggles(){
+    const wrap = document.getElementById("colorToggles");
+    wrap.innerHTML = "";
+    MED_COLORS.forEach(c=>{
+      const chip = document.createElement("div");
+      chip.className = "day-chip" + (medFormColor===c ? " active" : "");
+      chip.style.background = medFormColor===c ? c : "var(--panel-alt)";
+      chip.style.borderColor = c;
+      chip.addEventListener("click", ()=>{ medFormColor = c; renderColorToggles(); });
+      wrap.appendChild(chip);
+    });
+  }
+
+  document.getElementById("saveMedBtn").addEventListener("click", ()=>{
+    if(!state.premium && state.meds.length >= FREE_MED_LIMIT){
+      closeModal("medModalBg");
+      toast("Free plan is limited to " + FREE_MED_LIMIT + " medicines");
+      renderMedList();
+      return;
+    }
+    const name = document.getElementById("medName").value.trim();
+    const dose = document.getElementById("medDose").value.trim();
+    if(!name || medFormTimes.length===0){ toast("Add a name and at least one time"); return; }
+    state.meds.push({ id:uid(), name, dose, times:medFormTimes.slice(), days:medFormDays.slice(), color:medFormColor, icon:(state.premium?medFormIcon:""), createdAt:Date.now() });
+    save();
+    closeModal("medModalBg");
+    renderMedList();
+    renderToday();
+    toast("Medicine added");
+  });
+
+  function medActiveToday(med){
+    const dow = new Date().getDay();
+    return med.days.length===0 || med.days.includes(dow);
+  }
+
+  function renderMedList(){
+    const card = document.getElementById("medListCard");
+    if(state.meds.length===0){
+      card.innerHTML = `<div class="empty">No medicines yet. Add one to start getting reminders.</div>`;
+      document.getElementById("openAddMed").style.display = "block";
+      document.getElementById("medLimitCard").style.display = "none";
+      return;
+    }
+    card.innerHTML = "";
+    state.meds.forEach(med=>{
+      const row = document.createElement("div");
+      row.className = "med-item";
+      row.innerHTML = `
+        <div class="med-dot" style="background:${med.color}"></div>
+        <div class="med-info">
+          <div class="med-name">${(state.premium && med.icon) ? med.icon+" " : ""}${escapeHtml(med.name)}</div>
+          <div class="med-meta">${escapeHtml(med.dose||"")} · ${med.times.join(", ")} · ${med.days.length===7?"Every day":med.days.map(d=>DAY_LABELS[d]).join("")}</div>
+        </div>
+        <div class="med-actions">
+          <button class="ghost-btn" data-del="${med.id}" aria-label="Delete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6h16z"/></svg>
+          </button>
+        </div>`;
+      card.appendChild(row);
+    });
+    card.querySelectorAll("[data-del]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        state.meds = state.meds.filter(m=>m.id!==btn.dataset.del);
+        save(); renderMedList(); renderToday();
+        toast("Medicine removed");
+      });
+    });
+    const atLimit = !state.premium && state.meds.length >= FREE_MED_LIMIT;
+    document.getElementById("openAddMed").style.display = atLimit ? "none" : "block";
+    document.getElementById("medLimitCard").style.display = atLimit ? "block" : "none";
+  }
+
+  function escapeHtml(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+
+  /* ----- today's doses ----- */
+  function doseTaken(medId, time, date){
+    return state.doseLog.some(l=>l.medId===medId && l.time===time && l.date===date);
+  }
+  function todaysDoses(){
+    const date = todayStr();
+    const list = [];
+    state.meds.forEach(med=>{
+      if(!medActiveToday(med)) return;
+      med.times.forEach(time=>{
+        list.push({ med, time, date, taken: doseTaken(med.id, time, date) });
+      });
+    });
+    list.sort((a,b)=> a.time.localeCompare(b.time));
+    return list;
+  }
+  function doseCountsForDate(dateStr){
+    const dow = new Date(dateStr+"T00:00:00").getDay();
+    let total=0, taken=0;
+    state.meds.forEach(med=>{
+      const active = med.days.length===0 || med.days.includes(dow);
+      if(!active) return;
+      med.times.forEach(time=>{
+        total++;
+        if(doseTaken(med.id, time, dateStr)) taken++;
+      });
+    });
+    return {total, taken};
+  }
+
+  function renderToday(){
+    const doses = todaysDoses();
+    const listEl = document.getElementById("doseList");
+    if(doses.length===0){ listEl.innerHTML = `<div class="empty">No medicines scheduled today. Add one from the Meds tab.</div>`; }
+    else{
+      listEl.innerHTML = "";
+      doses.forEach(d=>{
+        const row = document.createElement("div");
+        row.className = "dose-card" + (d.taken ? " taken" : "");
+        row.innerHTML = `
+          <div class="dose-time">${d.time}</div>
+          <div class="dose-info">
+            <div class="dose-name">${(state.premium && d.med.icon) ? d.med.icon+" " : ""}${escapeHtml(d.med.name)}</div>
+            <div class="dose-dose">${escapeHtml(d.med.dose||"")}</div>
+          </div>
+          <button class="check-btn" aria-label="Mark taken">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5"><path d="M4 12l5 5L20 6"/></svg>
+          </button>`;
+        row.querySelector(".check-btn").addEventListener("click", ()=>toggleDose(d));
+        listEl.appendChild(row);
+      });
+    }
+    renderSnapshot();
+    renderInsights();
+    renderHealthScore();
+    updateStreakPill();
+    updateEcgLabel();
+  }
+
+  function toggleDose(d){
+    const idx = state.doseLog.findIndex(l=>l.medId===d.med.id && l.time===d.time && l.date===d.date);
+    if(idx>=0){
+      state.doseLog.splice(idx,1);
+    } else {
+      state.doseLog.push({ id:uid(), medId:d.med.id, time:d.time, date:d.date, takenAt:Date.now() });
+      state.xp += 10;
+      chimeSuccess();
+      maybeNotify(d.med.name + " logged", "Nice — dose marked as taken.");
+      checkStreak();
+    }
+    save();
+    renderToday();
+  }
+
+  function checkStreak(){
+    const date = todayStr();
+    const doses = todaysDoses();
+    const allTaken = doses.length>0 && doses.every(d=>d.taken || doseTaken(d.med.id,d.time,date));
+    if(allTaken){
+      if(state.streak.lastCompleteDate === date) return;
+      const yesterday = addDays(date,-1);
+      state.streak.current = (state.streak.lastCompleteDate === yesterday) ? state.streak.current+1 : 1;
+      state.streak.best = Math.max(state.streak.best, state.streak.current);
+      state.streak.lastCompleteDate = date;
+      save();
+      if(state.streak.current>1) toast(`🔥 ${state.streak.current}-day streak!`);
+    }
+  }
+  function updateStreakPill(){
+    document.getElementById("streakPill").textContent = "🔥 " + state.streak.current;
+  }
+
+  /* ----- reminder polling + notifications ----- */
+  const notifiedToday = new Set();
+  function maybeNotify(title, body){
+    if(window.Notification && Notification.permission === "granted"){
+      try{ new Notification(title, {body}); }catch(e){}
+    }
+  }
+  function checkDueReminders(){
+    const date = todayStr();
+    const hm = nowHM();
+    state.meds.forEach(med=>{
+      if(!medActiveToday(med)) return;
+      med.times.forEach(time=>{
+        const key = med.id+time+date;
+        if(time===hm && !doseTaken(med.id,time,date) && !notifiedToday.has(key)){
+          notifiedToday.add(key);
+          maybeNotify("Time for " + med.name, (med.dose||"") + " — " + time);
+          toast("⏰ " + med.name + " is due now");
+          renderToday();
+        }
+      });
+    });
+  }
+  setInterval(checkDueReminders, 20000);
+
+  document.getElementById("notifPermBtn").addEventListener("click", ()=>{
+    if(!window.Notification){ toast("Notifications not supported on this device"); return; }
+    Notification.requestPermission().then(p=>{
+      toast(p==="granted" ? "Reminders enabled" : "Permission not granted");
+    });
+  });
+
+  /* ==================================================================
+     SNAPSHOT (Today tab)
+  ================================================================== */
+  function last(arr){ return arr.length ? arr[arr.length-1] : null; }
+  function historyLimit(){ return state.premium ? 20 : 5; }
+  function historyHint(totalCount, shownCount){
+    if(state.premium || totalCount<=shownCount) return "";
+    return `<div class="tip-hint" style="text-align:center;margin-top:6px;">Showing last ${shownCount} of ${totalCount} · <span class="upgrade-link" data-upgrade-link style="color:var(--pulse);text-decoration:underline;cursor:pointer;">Upgrade for full history</span></div>`;
+  }
+  function renderSnapshot(){
+    const grid = document.getElementById("snapshotGrid");
+    const bpm = last(state.bpm);
+    const bp = last(state.bp);
+    const sl = last(state.sleep);
+    const st = last(state.stress);
+    grid.innerHTML = `
+      <div class="stat-card accent-pulse"><div class="label">HEART RATE</div><div class="value">${bpm?bpm.value:"--"}</div><div class="sub">${bpm?prettyDate(bpm.date):"no data"}</div></div>
+      <div class="stat-card accent-amber"><div class="label">BLOOD PRESSURE</div><div class="value">${bp?bp.sys+"/"+bp.dia:"--"}</div><div class="sub">${bp?prettyDate(bp.date):"no data"}</div></div>
+      <div class="stat-card accent-violet"><div class="label">LAST SLEEP</div><div class="value">${sl?sl.hours+"h":"--"}</div><div class="sub">${sl?prettyDate(sl.date):"no data"}</div></div>
+      <div class="stat-card accent-red"><div class="label">STRESS</div><div class="value">${st?st.value+"/10":"--"}</div><div class="sub">${st?prettyDate(st.date):"no data"}</div></div>
+    `;
+  }
+  /* premium: Health Score */
+  const HS_CIRC = 2 * Math.PI * 42;
+  function computeHealthScore(){
+    const cutoff = addDays(todayStr(), -6);
+    const bpmWeek = state.bpm.filter(e=>e.date>=cutoff);
+    const sleepWeek = state.sleep.filter(e=>e.date>=cutoff);
+    const stressWeek = state.stress.filter(e=>e.date>=cutoff);
+    let totalDoses=0, takenDoses=0;
+    for(let i=0;i<7;i++){ const d=addDays(todayStr(),-i); const c=doseCountsForDate(d); totalDoses+=c.total; takenDoses+=c.taken; }
+
+    const parts = [];
+    if(totalDoses>0) parts.push({ key:"adherence", w:30, score:(takenDoses/totalDoses)*100 });
+    if(bpmWeek.length){
+      const avg = bpmWeek.reduce((a,e)=>a+e.value,0)/bpmWeek.length;
+      const s = Math.max(0, Math.min(100, 100 - Math.max(0, Math.abs(avg-70)-10)*2.5));
+      parts.push({ key:"heart rate", w:25, score:s });
+    }
+    if(sleepWeek.length){
+      const avg = sleepWeek.reduce((a,e)=>a+e.hours,0)/sleepWeek.length;
+      const s = Math.max(0, Math.min(100, 100 - Math.abs(avg-7.5)*18));
+      parts.push({ key:"sleep", w:25, score:s });
+    }
+    if(stressWeek.length){
+      const avg = stressWeek.reduce((a,e)=>a+e.value,0)/stressWeek.length;
+      const s = Math.max(0, Math.min(100, 100 - avg*10));
+      parts.push({ key:"stress", w:20, score:s });
+    }
+    if(parts.length===0) return null;
+    const totalW = parts.reduce((a,p)=>a+p.w,0);
+    const score = Math.round(parts.reduce((a,p)=>a+p.w*p.score,0)/totalW);
+    return { score, factors: parts.map(p=>p.key) };
+  }
+  function renderHealthScore(){
+    const box = document.getElementById("healthScoreContent");
+    const paywall = document.getElementById("healthScorePaywall");
+    if(!state.premium){ box.style.display="none"; paywall.style.display="block"; return; }
+    paywall.style.display = "none"; box.style.display = "flex";
+
+    const result = computeHealthScore();
+    const ring = document.getElementById("hsRingFg");
+    const numEl = document.getElementById("hsScoreNum");
+    const catEl = document.getElementById("hsCategory");
+    const subEl = document.getElementById("hsSub");
+    const factorsEl = document.getElementById("hsFactors");
+
+    if(!result){
+      ring.style.strokeDashoffset = HS_CIRC;
+      ring.style.stroke = "var(--muted-2)";
+      numEl.textContent = "--";
+      catEl.textContent = "Not enough data yet";
+      subEl.textContent = "Log a dose, heart rate, sleep, or stress entry to build your score.";
+      factorsEl.innerHTML = "";
+      return;
+    }
+    const score = result.score;
+    ring.style.strokeDashoffset = HS_CIRC * (1 - score/100);
+    let color, cat;
+    if(score>=80){ color="var(--pulse)"; cat="Excellent"; }
+    else if(score>=60){ color="var(--amber)"; cat="Good"; }
+    else if(score>=40){ color="var(--amber)"; cat="Fair"; }
+    else { color="var(--red)"; cat="Needs attention"; }
+    ring.style.stroke = color;
+    numEl.textContent = score;
+    catEl.textContent = cat;
+    subEl.textContent = "Based on the last 7 days.";
+    factorsEl.innerHTML = result.factors.map(f=>`<span class="hs-factor">${f}</span>`).join("");
+  }
+  function renderInsights(){
+    const box = document.getElementById("insightsContent");
+    const paywall = document.getElementById("insightsPaywall");
+    if(!state.premium){ box.style.display="none"; paywall.style.display="block"; return; }
+    paywall.style.display = "none"; box.style.display = "block";
+
+    const cutoff = addDays(todayStr(), -6);
+    const bpmWeek = state.bpm.filter(e=>e.date>=cutoff);
+    const sleepWeek = state.sleep.filter(e=>e.date>=cutoff);
+    const stressWeek = state.stress.filter(e=>e.date>=cutoff);
+    const avgBpm = bpmWeek.length ? Math.round(bpmWeek.reduce((a,e)=>a+e.value,0)/bpmWeek.length) : null;
+    const avgSleep = sleepWeek.length ? Math.round((sleepWeek.reduce((a,e)=>a+e.hours,0)/sleepWeek.length)*10)/10 : null;
+    const avgStress = stressWeek.length ? Math.round((stressWeek.reduce((a,e)=>a+e.value,0)/stressWeek.length)*10)/10 : null;
+    let totalDoses=0, takenDoses=0;
+    for(let i=0;i<7;i++){ const d=addDays(todayStr(),-i); const c=doseCountsForDate(d); totalDoses+=c.total; takenDoses+=c.taken; }
+    const adherence = totalDoses>0 ? Math.round((takenDoses/totalDoses)*100) : null;
+
+    box.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-card accent-pulse"><div class="label">AVG HEART RATE</div><div class="value">${avgBpm!=null?avgBpm:"--"}</div><div class="sub">last 7 days</div></div>
+        <div class="stat-card accent-violet"><div class="label">AVG SLEEP</div><div class="value">${avgSleep!=null?avgSleep+"h":"--"}</div><div class="sub">last 7 days</div></div>
+        <div class="stat-card accent-red"><div class="label">AVG STRESS</div><div class="value">${avgStress!=null?avgStress+"/10":"--"}</div><div class="sub">last 7 days</div></div>
+        <div class="stat-card accent-amber"><div class="label">DOSE ADHERENCE</div><div class="value">${adherence!=null?adherence+"%":"--"}</div><div class="sub">last 7 days</div></div>
+      </div>
+    `;
+  }
+  function updateEcgLabel(){
+    const bpm = last(state.bpm);
+    const label = document.getElementById("ecgLabel");
+    label.textContent = bpm ? bpm.value + " BPM" : "-- BPM";
+    const speed = bpm ? Math.max(1.6, Math.min(7, 4.5 * (70/bpm.value))) : 4.5;
+    document.getElementById("ecgTrack").style.animationDuration = speed + "s";
+  }
+
+  /* ==================================================================
+     VITALS: heart rate tap + manual, blood pressure
+  ================================================================== */
+  let tapTimes = [];
+  const tapZone = document.getElementById("tapZone");
+  const tapReadout = document.getElementById("tapReadout");
+  const tapHint = document.getElementById("tapHint");
+  tapZone.addEventListener("click", ()=>{
+    const now = performance.now();
+    tapTimes.push(now);
+    if(tapTimes.length>8) tapTimes.shift();
+    tapZone.classList.remove("pulsing"); void tapZone.offsetWidth; tapZone.classList.add("pulsing");
+    chimeTick();
+    if(tapTimes.length>=2){
+      const intervals=[];
+      for(let i=1;i<tapTimes.length;i++) intervals.push(tapTimes[i]-tapTimes[i-1]);
+      const avg = intervals.reduce((a,b)=>a+b,0)/intervals.length;
+      const bpm = Math.round(60000/avg);
+      if(bpm>30 && bpm<230){
+        tapReadout.textContent = bpm;
+        tapHint.textContent = tapTimes.length<6 ? "Keep tapping..." : "Tap 'Log reading' below when steady";
+        document.getElementById("bpmManual").value = bpm;
+      }
+    }
+    clearTimeout(tapZone._resetT);
+    tapZone._resetT = setTimeout(()=>{ tapTimes=[]; tapReadout.textContent="TAP"; tapHint.textContent="Tap here in rhythm with your pulse (6+ taps)"; }, 3500);
+  });
+
+  document.getElementById("logBpmBtn").addEventListener("click", ()=>{
+    const v = parseInt(document.getElementById("bpmManual").value,10);
+    if(!v || v<30 || v>250){ toast("Enter a valid BPM (30–250)"); return; }
+    state.bpm.push({ id:uid(), value:v, date:todayStr(), ts:Date.now() });
+    save();
+    document.getElementById("bpmManual").value = "";
+    chimeSoft();
+    renderBpmHistory(); renderBpmChart(); renderSnapshot(); updateEcgLabel();
+    toast("Heart rate logged");
+  });
+
+  function renderBpmHistory(){
+    const wrap = document.getElementById("bpmHistory");
+    const limit = historyLimit();
+    const entries = state.bpm.slice(-limit).reverse();
+    if(entries.length===0){ wrap.innerHTML = `<div class="empty">No readings yet</div>`; return; }
+    wrap.innerHTML = entries.map(e=>{
+      const badge = e.value<60?"warn":e.value<=100?"ok":"bad";
+      const badgeText = e.value<60?"Low":e.value<=100?"Normal":"Elevated";
+      return `<div class="history-item"><span class="h-date">${prettyDate(e.date)}</span><span class="h-val">${e.value} bpm</span><span class="badge ${badge}">${badgeText}</span></div>`;
+    }).join("") + historyHint(state.bpm.length, entries.length);
+  }
+
+  function drawLineChart(canvas, points, color){
+    if(!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const dpr = window.devicePixelRatio||1;
+    const w = canvas.clientWidth, h = canvas.height;
+    canvas.width = w*dpr; canvas.height = h*dpr;
+    ctx.scale(dpr,dpr);
+    ctx.clearRect(0,0,w,h);
+    if(points.length<2){
+      ctx.fillStyle = "#4F6C6F"; ctx.font = "12px IBM Plex Mono"; ctx.fillText("Not enough data yet", 10, h/2);
+      return;
+    }
+    const vals = points.map(p=>p.value);
+    const min = Math.min(...vals)-5, max = Math.max(...vals)+5;
+    const pad = 10;
+    ctx.beginPath();
+    points.forEach((p,i)=>{
+      const x = pad + (i/(points.length-1))*(w-pad*2);
+      const y = h-pad - ((p.value-min)/(max-min||1))*(h-pad*2);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineJoin="round"; ctx.stroke();
+    points.forEach((p,i)=>{
+      const x = pad + (i/(points.length-1))*(w-pad*2);
+      const y = h-pad - ((p.value-min)/(max-min||1))*(h-pad*2);
+      ctx.beginPath(); ctx.arc(x,y,2.5,0,Math.PI*2); ctx.fillStyle = color; ctx.fill();
+    });
+  }
+  function currentAccentColor(){
+    return getComputedStyle(document.documentElement).getPropertyValue("--pulse").trim() || "#4CDBB4";
+  }
+  function renderBpmChart(){ drawLineChart(document.getElementById("bpmChart"), state.bpm.slice(-historyLimit()), currentAccentColor()); }
+
+  document.getElementById("logBpBtn").addEventListener("click", ()=>{
+    const sys = parseInt(document.getElementById("bpSys").value,10);
+    const dia = parseInt(document.getElementById("bpDia").value,10);
+    if(!sys||!dia||sys<50||sys>260||dia<30||dia>200){ toast("Enter valid systolic/diastolic values"); return; }
+    state.bp.push({ id:uid(), sys, dia, date:todayStr(), ts:Date.now() });
+    save();
+    document.getElementById("bpSys").value=""; document.getElementById("bpDia").value="";
+    chimeSoft();
+    renderBpHistory(); renderSnapshot();
+    const cat = bpCategory(sys,dia);
+    if(cat.text==="Crisis" || cat.text==="Very low"){
+      toast("⚠️ " + cat.text + " reading (" + sys + "/" + dia + ") — consider contacting a professional");
+    } else if(cat.cls==="warn"){
+      toast("Logged — reading is in the '" + cat.text + "' range");
+    } else {
+      toast("Blood pressure logged");
+    }
+  });
+
+  function bpCategory(sys,dia){
+    if(sys>=180||dia>=120) return {cls:"bad",text:"Crisis"};
+    if(sys>=140||dia>=90) return {cls:"bad",text:"High (stage 2)"};
+    if(sys>=130||dia>=80) return {cls:"warn",text:"High (stage 1)"};
+    if(sys>=120) return {cls:"warn",text:"Elevated"};
+    if(sys<80||dia<50) return {cls:"bad",text:"Very low"};
+    if(sys<90||dia<60) return {cls:"warn",text:"Low"};
+    return {cls:"ok",text:"Normal"};
+  }
+  function renderBpHistory(){
+    const wrap = document.getElementById("bpHistory");
+    const limit = historyLimit();
+    const entries = state.bp.slice(-limit).reverse();
+    if(entries.length===0){ wrap.innerHTML = `<div class="empty">No readings yet</div>`; return; }
+    wrap.innerHTML = entries.map(e=>{
+      const c = bpCategory(e.sys,e.dia);
+      return `<div class="history-item"><span class="h-date">${prettyDate(e.date)}</span><span class="h-val">${e.sys}/${e.dia}</span><span class="badge ${c.cls}">${c.text}</span></div>`;
+    }).join("") + historyHint(state.bp.length, entries.length);
+  }
+
+  /* ==================================================================
+     SLEEP
+  ================================================================== */
+  document.getElementById("logSleepBtn").addEventListener("click", ()=>{
+    const bed = document.getElementById("bedtimeInput").value;
+    const wake = document.getElementById("waketimeInput").value;
+    if(!bed||!wake){ toast("Set both bedtime and wake time"); return; }
+    const [bh,bm] = bed.split(":").map(Number);
+    const [wh,wm] = wake.split(":").map(Number);
+    let mins = (wh*60+wm) - (bh*60+bm);
+    if(mins<=0) mins += 24*60;
+    const hours = Math.round((mins/60)*10)/10;
+    state.sleep.push({ id:uid(), bedtime:bed, wake, hours, date:todayStr(), ts:Date.now() });
+    save();
+    chimeSoft();
+    renderSleepBars(); renderSleepHistory(); renderSnapshot();
+    toast("Sleep logged — " + hours + "h");
+  });
+
+  function renderSleepBars(){
+    const wrap = document.getElementById("sleepBars");
+    const entries = state.sleep.slice(-7);
+    if(entries.length===0){ wrap.innerHTML = `<div class="empty" style="width:100%;">No sleep data yet</div>`; return; }
+    const max = Math.max(10, ...entries.map(e=>e.hours));
+    wrap.innerHTML = "";
+    entries.forEach(e=>{
+      const col = document.createElement("div");
+      col.className = "sleep-bar-col";
+      const barH = Math.max(4, (e.hours/max)*100);
+      col.innerHTML = `<div class="sleep-bar" style="height:${barH}%" title="${e.hours}h"></div><div class="lbl">${e.hours}h</div>`;
+      wrap.appendChild(col);
+    });
+  }
+  function renderSleepHistory(){
+    const wrap = document.getElementById("sleepHistory");
+    const limit = historyLimit();
+    const entries = state.sleep.slice(-limit).reverse();
+    if(entries.length===0){ wrap.innerHTML = `<div class="empty">No entries yet</div>`; return; }
+    wrap.innerHTML = entries.map(e=>{
+      const badge = e.hours>=7 && e.hours<=9 ? "ok" : e.hours>=6 ? "warn" : "bad";
+      return `<div class="history-item"><span class="h-date">${prettyDate(e.date)}</span><span class="h-val">${e.bedtime} → ${e.wake}</span><span class="badge ${badge}">${e.hours}h</span></div>`;
+    }).join("") + historyHint(state.sleep.length, entries.length);
+  }
+
+  /* ==================================================================
+     STRESS
+  ================================================================== */
+  const stressLabels = {1:"Very calm",2:"Calm",3:"Relaxed",4:"Mild tension",5:"Moderate",6:"A bit stressed",7:"Stressed",8:"High stress",9:"Very high",10:"Overwhelmed"};
+  const stressSlider = document.getElementById("stressSlider");
+  const stressLabelEl = document.getElementById("stressLabel");
+  stressSlider.addEventListener("input", ()=>{ stressLabelEl.textContent = stressLabels[stressSlider.value]; });
+  document.getElementById("logStressBtn").addEventListener("click", ()=>{
+    const v = parseInt(stressSlider.value,10);
+    state.stress.push({ id:uid(), value:v, date:todayStr(), ts:Date.now() });
+    save();
+    chimeSoft();
+    renderStressChart(); renderStressHistory(); renderSnapshot();
+    toast("Check-in logged: " + stressLabels[v]);
+  });
+  function renderStressChart(){ drawLineChart(document.getElementById("stressChart"), state.stress.slice(-historyLimit()), "#9E8CF2"); }
+  function renderStressHistory(){
+    const wrap = document.getElementById("stressHistory");
+    const limit = historyLimit();
+    const entries = state.stress.slice(-limit).reverse();
+    if(entries.length===0){ wrap.innerHTML = `<div class="empty">No check-ins yet</div>`; return; }
+    wrap.innerHTML = entries.map(e=>{
+      const badge = e.value<=3?"ok":e.value<=6?"warn":"bad";
+      return `<div class="history-item"><span class="h-date">${prettyDate(e.date)}</span><span class="h-val">${stressLabels[e.value]}</span><span class="badge ${badge}">${e.value}/10</span></div>`;
+    }).join("") + historyHint(state.stress.length, entries.length);
+  }
+
+  /* ==================================================================
+     BMI
+  ================================================================== */
+  document.getElementById("calcBmiBtn").addEventListener("click", ()=>{
+    const h = parseFloat(document.getElementById("bmiHeight").value);
+    const w = parseFloat(document.getElementById("bmiWeight").value);
+    if(!h||!w||h<50||h>250||w<20||w>400){ toast("Enter valid height and weight"); return; }
+    const bmi = w / Math.pow(h/100,2);
+    const rounded = Math.round(bmi*10)/10;
+    document.getElementById("bmiResult").style.display = "block";
+    document.getElementById("bmiValue").textContent = rounded;
+    let cat, cls;
+    if(bmi<18.5){ cat="Underweight"; cls="warn"; }
+    else if(bmi<25){ cat="Normal range"; cls="ok"; }
+    else if(bmi<30){ cat="Overweight"; cls="warn"; }
+    else { cat="Obese"; cls="bad"; }
+    const badge = document.getElementById("bmiBadge");
+    badge.textContent = cat; badge.className = "badge " + cls;
+    const pct = Math.max(0, Math.min(100, ((bmi-15)/(40-15))*100));
+    document.getElementById("bmiMarker").style.left = pct + "%";
+    chimeSoft();
+  });
+
+  /* ==================================================================
+     MOTION SICKNESS AIDS
+  ================================================================== */
+
+  /* -- artificial horizon: idle sway by default, device tilt if granted -- */
+  const horizonWrap = document.getElementById("horizonWrap");
+  const horizonPlate = document.getElementById("horizonPlate");
+  function handleOrientation(e){
+    if(e.beta===null || e.gamma===null) return;
+    const roll = Math.max(-25, Math.min(25, e.gamma));
+    const pitch = Math.max(-15, Math.min(15, (e.beta-90>-90?e.beta:e.beta)/4));
+    horizonPlate.style.transform = `rotate(${-roll}deg) translateY(${pitch}px)`;
+  }
+  document.getElementById("tiltPermBtn").addEventListener("click", async ()=>{
+    if(typeof DeviceOrientationEvent!=="undefined" && typeof DeviceOrientationEvent.requestPermission==="function"){
+      try{
+        const perm = await DeviceOrientationEvent.requestPermission();
+        if(perm!=="granted"){ toast("Tilt permission denied"); return; }
+      }catch(e){ toast("Couldn't request tilt permission"); return; }
+    }
+    horizonWrap.classList.add("tilting");
+    window.addEventListener("deviceorientation", handleOrientation);
+    toast("Device tilt enabled");
+  });
+
+  /* -- box breathing pacer -- */
+  let breatheTimer = null;
+  let breathing = false;
+  const breatheCircle = document.getElementById("breatheCircle");
+  const breatheLabel = document.getElementById("breatheLabel");
+  const breatheBtn = document.getElementById("breatheBtn");
+  const BREATHE_PHASES = [
+    {name:"Inhale", cls:"grow", dur:4000},
+    {name:"Hold", cls:"hold", dur:4000},
+    {name:"Exhale", cls:"shrink", dur:4000},
+    {name:"Hold", cls:"shrink", dur:4000},
+  ];
+  function runBreathePhase(i){
+    if(!breathing) return;
+    const phase = BREATHE_PHASES[i % BREATHE_PHASES.length];
+    breatheCircle.className = "breathe-circle " + phase.cls;
+    breatheLabel.textContent = phase.name;
+    breatheTimer = setTimeout(()=>runBreathePhase(i+1), phase.dur);
+  }
+  breatheBtn.addEventListener("click", ()=>{
+    breathing = !breathing;
+    if(breathing){
+      breatheBtn.textContent = "Stop";
+      runBreathePhase(0);
+    } else {
+      clearTimeout(breatheTimer);
+      breatheCircle.className = "breathe-circle";
+      breatheLabel.textContent = "Ready";
+      breatheBtn.textContent = "Start box breathing";
+    }
+  });
+
+  /* -- acupressure countdown -- */
+  let acuTimer = null;
+  let acuRemaining = 60;
+  const acuReadout = document.getElementById("acuReadout");
+  const acuBtn = document.getElementById("acuBtn");
+  function acuTick(){
+    acuRemaining--;
+    acuReadout.textContent = acuRemaining;
+    if(acuRemaining<=0){
+      clearInterval(acuTimer);
+      acuTimer = null;
+      acuBtn.textContent = "Start 60s";
+      chimeSuccess();
+      toast("Nice — 60 seconds done");
+      acuRemaining = 60;
+      acuReadout.textContent = "60";
+    }
+  }
+  acuBtn.addEventListener("click", ()=>{
+    if(acuTimer){
+      clearInterval(acuTimer); acuTimer=null;
+      acuRemaining=60; acuReadout.textContent="60"; acuBtn.textContent="Start 60s";
+      return;
+    }
+    acuBtn.textContent = "Stop";
+    acuTimer = setInterval(acuTick, 1000);
+  });
+
+  /* -- episode log -- */
+  const motionSevSlider = document.getElementById("motionSevSlider");
+  const motionSevLabel = document.getElementById("motionSevLabel");
+  motionSevSlider.addEventListener("input", ()=>{ motionSevLabel.textContent = stressLabels[motionSevSlider.value]; });
+  document.getElementById("logMotionBtn").addEventListener("click", ()=>{
+    const v = parseInt(motionSevSlider.value,10);
+    const trigger = document.getElementById("motionTrigger").value.trim();
+    state.motionLog.push({ id:uid(), severity:v, trigger, date:todayStr(), ts:Date.now() });
+    save();
+    document.getElementById("motionTrigger").value = "";
+    chimeSoft();
+    renderMotionHistory();
+    toast("Episode logged");
+  });
+  function renderMotionHistory(){
+    const wrap = document.getElementById("motionHistory");
+    const entries = state.motionLog.slice(-8).reverse();
+    if(entries.length===0){ wrap.innerHTML = `<div class="empty">No episodes logged yet</div>`; return; }
+    wrap.innerHTML = entries.map(e=>{
+      const badge = e.severity<=3?"ok":e.severity<=6?"warn":"bad";
+      return `<div class="history-item"><span class="h-date">${prettyDate(e.date)}${e.trigger?" · "+escapeHtml(e.trigger):""}</span><span class="badge ${badge}">${e.severity}/10</span></div>`;
+    }).join("");
+  }
+
+  /* ==================================================================
+     HEALTHY EATING
+  ================================================================== */
+  function countToday(arr){ const d=todayStr(); return arr.filter(e=>e.date===d).length; }
+
+  function renderFoodTab(){
+    const waterN = countToday(state.waterLog);
+    const produceN = countToday(state.produceLog);
+    document.getElementById("waterCount").textContent = waterN;
+    document.getElementById("produceCount").textContent = produceN;
+    document.getElementById("waterFill").style.width = Math.min(100, (waterN/8)*100) + "%";
+    document.getElementById("produceFill").style.width = Math.min(100, (produceN/5)*100) + "%";
+    renderMealHistory();
+  }
+
+  document.getElementById("addWaterBtn").addEventListener("click", ()=>{
+    state.waterLog.push({ id:uid(), date:todayStr(), ts:Date.now() });
+    state.xp += 2;
+    save();
+    chimeTick();
+    renderFoodTab();
+  });
+  document.getElementById("addProduceBtn").addEventListener("click", ()=>{
+    state.produceLog.push({ id:uid(), date:todayStr(), ts:Date.now() });
+    state.xp += 2;
+    save();
+    chimeTick();
+    renderFoodTab();
+  });
+
+  document.querySelectorAll("#mealTagRow .quick-tag").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const note = document.getElementById("mealNote").value.trim();
+      state.mealLog.push({ id:uid(), tag:btn.dataset.tag, note, date:todayStr(), ts:Date.now() });
+      save();
+      document.getElementById("mealNote").value = "";
+      chimeSoft();
+      renderMealHistory();
+      toast("Logged: " + btn.dataset.tag);
+    });
+  });
+
+  function renderMealHistory(){
+    const wrap = document.getElementById("mealHistory");
+    const entries = state.mealLog.slice(-8).reverse();
+    if(entries.length===0){ wrap.innerHTML = `<div class="empty">No meals logged yet today</div>`; return; }
+    wrap.innerHTML = entries.map(e=>{
+      return `<div class="history-item"><span class="h-date">${prettyDate(e.date)}${e.note?" · "+escapeHtml(e.note):""}</span><span class="badge ok">${escapeHtml(e.tag)}</span></div>`;
+    }).join("");
+  }
+
+  /* ==================================================================
+     PREMIUM (demo only — no real payments wired up)
+  ================================================================== */
+  const PREMIUM_TABS = ["motion","food"];
+  const ACCENTS = {
+    teal:   { pulse:"#4CDBB4", dim:"#2C6B5D", rgb:"76,219,180" },
+    amber:  { pulse:"#F2A65A", dim:"#8A5A28", rgb:"242,166,90" },
+    violet: { pulse:"#9E8CF2", dim:"#5B4A9E", rgb:"158,140,242" },
+    rose:   { pulse:"#E8615C", dim:"#8A3330", rgb:"232,97,92" },
+  };
+  function applyAccent(name){
+    const a = ACCENTS[name] || ACCENTS.teal;
+    document.documentElement.style.setProperty("--pulse", a.pulse);
+    document.documentElement.style.setProperty("--pulse-dim", a.dim);
+    document.documentElement.style.setProperty("--pulse-rgb", a.rgb);
+    document.querySelectorAll(".theme-swatch").forEach(sw=>{
+      sw.classList.toggle("active", sw.dataset.accent===name);
+    });
+    if(document.getElementById("bpmChart")) renderBpmChart();
+  }
+  document.querySelectorAll(".theme-swatch").forEach(sw=>{
+    sw.addEventListener("click", ()=>{
+      if(!state.premium){ toast("Custom themes are a Premium feature"); return; }
+      state.accentColor = sw.dataset.accent;
+      save();
+      applyAccent(state.accentColor);
+    });
+  });
+
+  function applyPremiumGating(){
+    const unlocked = !!state.premium;
+    document.getElementById("motionContent").style.display = unlocked ? "block" : "none";
+    document.getElementById("motionPaywall").style.display = unlocked ? "none" : "block";
+    document.getElementById("foodContent").style.display = unlocked ? "block" : "none";
+    document.getElementById("foodPaywall").style.display = unlocked ? "none" : "block";
+    document.getElementById("proBadge").style.display = unlocked ? "flex" : "none";
+    document.querySelectorAll(".tab-btn").forEach(btn=>{
+      btn.classList.toggle("locked", !unlocked && PREMIUM_TABS.includes(btn.dataset.tab));
+    });
+    document.getElementById("premiumStatusOk").style.display = unlocked ? "block" : "none";
+    document.getElementById("premiumBenefitsList").style.display = unlocked ? "none" : "block";
+    document.getElementById("upgradeBtnSettings").style.display = unlocked ? "none" : "block";
+    document.getElementById("restoreBtn").style.display = unlocked ? "block" : "none";
+    document.getElementById("restoreBtn").textContent = unlocked ? "Downgrade to Free (demo)" : "Restore purchase";
+    const atLimit = !unlocked && state.meds.length >= FREE_MED_LIMIT;
+    document.getElementById("openAddMed").style.display = atLimit ? "none" : "block";
+    document.getElementById("medLimitCard").style.display = atLimit ? "block" : "none";
+    document.querySelectorAll(".theme-swatch").forEach(sw=>{
+      sw.classList.toggle("locked", !unlocked);
+    });
+    applyAccent(unlocked ? (state.accentColor || "teal") : "teal");
+    renderInsights();
+    renderHealthScore();
+    renderBpmHistory();
+    renderBpHistory();
+    renderSleepHistory();
+    renderStressHistory();
+    renderChimePacks();
+    renderIconToggles();
+    renderMedList();
+    renderToday();
+  }
+
+  function unlockPremium(){
+    state.premium = true;
+    save();
+    applyPremiumGating();
+    closeModal("settingsModalBg");
+    toast("🎉 Premium unlocked (demo)");
+  }
+  document.addEventListener("click", (e)=>{
+    if(e.target.closest("[data-upgrade-link]")) unlockPremium();
+  });
+  ["upgradeBtnMotion","upgradeBtnFood","upgradeBtnSettings","upgradeBtnMeds","upgradeBtnInsights","upgradeBtnHealthScore"].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.addEventListener("click", unlockPremium);
+  });
+
+  document.getElementById("restoreBtn").addEventListener("click", ()=>{
+    if(state.premium){
+      state.premium = false;
+      save();
+      applyPremiumGating();
+      toast("Back to free tier (demo)");
+    } else {
+      unlockPremium();
+    }
+  });
+
+  /* ==================================================================
+     SETTINGS: export / import / reset
+  ================================================================== */
+  document.getElementById("exportBtn").addEventListener("click", ()=>{
+    const blob = new Blob([JSON.stringify(state,null,2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "vitacore-data.json"; a.click();
+    URL.revokeObjectURL(url);
+  });
+  function csvEsc(v){ return '"' + String(v==null?"":v).replace(/"/g,'""') + '"'; }
+  document.getElementById("exportCsvBtn").addEventListener("click", ()=>{
+    if(!state.premium){ toast("CSV export is a Premium feature"); return; }
+    const rows = [["date","type","details"]];
+    state.bpm.forEach(e=>rows.push([e.date,"heart_rate",e.value+" bpm"]));
+    state.bp.forEach(e=>rows.push([e.date,"blood_pressure",e.sys+"/"+e.dia]));
+    state.sleep.forEach(e=>rows.push([e.date,"sleep",e.hours+"h ("+e.bedtime+" to "+e.wake+")"]));
+    state.stress.forEach(e=>rows.push([e.date,"stress",e.value+"/10"]));
+    state.motionLog.forEach(e=>rows.push([e.date,"motion_sickness",e.severity+"/10"+(e.trigger?" — "+e.trigger:"")]));
+    state.waterLog.forEach(e=>rows.push([e.date,"water","1 cup"]));
+    state.produceLog.forEach(e=>rows.push([e.date,"produce","1 serving"]));
+    state.mealLog.forEach(e=>rows.push([e.date,"meal",e.tag+(e.note?" — "+e.note:"")]));
+    state.doseLog.forEach(e=>{
+      const med = state.meds.find(m=>m.id===e.medId);
+      rows.push([e.date,"medicine_taken",(med?med.name:"?")+" @ "+e.time]);
+    });
+    rows.sort((a,b)=> a[0]<b[0] ? -1 : a[0]>b[0] ? 1 : 0);
+    const csv = rows.map(r=>r.map(csvEsc).join(",")).join("\n");
+    const blob = new Blob([csv], {type:"text/csv"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "vitacore-data.csv"; a.click();
+    URL.revokeObjectURL(url);
+  });
+  document.getElementById("importFile").addEventListener("change", (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const parsed = JSON.parse(reader.result);
+        state = Object.assign(defaultState(), parsed);
+        save();
+        renderAll();
+        toast("Data imported");
+        closeModal("settingsModalBg");
+      }catch(err){ toast("Invalid file"); }
+    };
+    reader.readAsText(file);
+  });
+  document.getElementById("resetBtn").addEventListener("click", ()=>{
+    if(confirm("This will delete all VitaCore data on this device. Continue?")){
+      state = defaultState();
+      save();
+      renderAll();
+      toast("All data cleared");
+      closeModal("settingsModalBg");
+    }
+  });
+
+  /* ==================================================================
+     init
+  ================================================================== */
+  function renderAll(){
+    renderMedList();
+    renderToday();
+    renderHealthScore();
+    renderChimePacks();
+    renderBpmHistory(); renderBpmChart();
+    renderBpHistory();
+    renderSleepBars(); renderSleepHistory();
+    renderStressChart(); renderStressHistory();
+    renderMotionHistory();
+    renderFoodTab();
+    applyPremiumGating();
+  }
+  resetMedForm();
+  renderAll();
+  checkDueReminders();
+
+  /* register a minimal service worker for installability (best-effort) */
+  if("serviceWorker" in navigator && (location.protocol==="https:" || location.hostname==="localhost")){
+    try{
+      const swCode = "self.addEventListener('fetch',function(){});";
+      const swBlob = new Blob([swCode], {type:"application/javascript"});
+      navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(()=>{});
+    }catch(e){}
+  }
+})();
+</script>
+</body>
+</html>
